@@ -1,7 +1,6 @@
 
 package com.example.poolguide
 
-import android.media.projection.MediaProjectionManager
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -12,6 +11,7 @@ import android.provider.Settings
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.media.projection.MediaProjectionManager
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -26,9 +26,14 @@ import kotlin.math.sin
 import kotlin.math.cos
 
 class MainActivity : Activity() {
+
     private lateinit var board: PracticeBoard
     private lateinit var angleLabel: TextView
     private var waitingForOverlayPermission = false
+
+    companion object {
+        private const val REQUEST_SCREEN_CAPTURE = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,9 +45,11 @@ class MainActivity : Activity() {
         }
 
         val scroll = ScrollView(this)
+
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
+
         scroll.addView(content)
 
         content.addView(TextView(this).apply {
@@ -62,26 +69,35 @@ class MainActivity : Activity() {
         addToolButton(content, "Start floating PG button") {
             startFloatingButton()
         }
+
         addToolButton(content, "Start screen capture test") {
-    requestScreenCapture()
+            requestScreenCapture()
         }
 
         board = PracticeBoard()
-        content.addView(board, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 230
-        ))
+
+        content.addView(
+            board,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                230
+            )
+        )
 
         angleLabel = TextView(this).apply {
             text = "Aim angle: 0°"
             textSize = 17f
             setTextColor(Color.WHITE)
         }
+
         content.addView(angleLabel)
 
         val slider = SeekBar(this).apply {
             max = 360
+
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
+
                     override fun onProgressChanged(
                         seekBar: SeekBar?,
                         value: Int,
@@ -92,11 +108,17 @@ class MainActivity : Activity() {
                         board.invalidate()
                     }
 
-                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStartTrackingTouch(
+                        seekBar: SeekBar?
+                    ) {}
+
+                    override fun onStopTrackingTouch(
+                        seekBar: SeekBar?
+                    ) {}
                 }
             )
         }
+
         content.addView(slider)
 
         addToolButton(content, "Angle calculator") {
@@ -127,10 +149,50 @@ class MainActivity : Activity() {
         setContentView(page)
     }
 
+    private fun requestScreenCapture() {
+        val manager = getSystemService(
+            MEDIA_PROJECTION_SERVICE
+        ) as MediaProjectionManager
+
+        startActivityForResult(
+            manager.createScreenCaptureIntent(),
+            REQUEST_SCREEN_CAPTURE
+        )
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (
+            requestCode == REQUEST_SCREEN_CAPTURE &&
+            resultCode == Activity.RESULT_OK &&
+            data != null
+        ) {
+            val serviceIntent = Intent(
+                this,
+                ScreenCaptureService::class.java
+            ).apply {
+                putExtra("result_code", resultCode)
+                putExtra("capture_data", data)
+            }
+
+            if (Build.VERSION.SDK_INT >= 26) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
 
-        if (waitingForOverlayPermission &&
+        if (
+            waitingForOverlayPermission &&
             Build.VERSION.SDK_INT >= 23 &&
             Settings.canDrawOverlays(this)
         ) {
@@ -138,18 +200,10 @@ class MainActivity : Activity() {
             startOverlayService()
         }
     }
-private fun requestScreenCapture() {
-    val manager = getSystemService(
-        MEDIA_PROJECTION_SERVICE
-    ) as MediaProjectionManager
 
-    startActivityForResult(
-        manager.createScreenCaptureIntent(),
-        1001
-    )
-}
     private fun startFloatingButton() {
-        if (Build.VERSION.SDK_INT >= 23 &&
+        if (
+            Build.VERSION.SDK_INT >= 23 &&
             !Settings.canDrawOverlays(this)
         ) {
             waitingForOverlayPermission = true
@@ -158,6 +212,7 @@ private fun requestScreenCapture() {
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
             )
+
             startActivity(intent)
         } else {
             startOverlayService()
@@ -165,7 +220,10 @@ private fun requestScreenCapture() {
     }
 
     private fun startOverlayService() {
-        val intent = Intent(this, FloatingOverlayService::class.java)
+        val intent = Intent(
+            this,
+            FloatingOverlayService::class.java
+        )
 
         if (Build.VERSION.SDK_INT >= 26) {
             startForegroundService(intent)
@@ -184,7 +242,9 @@ private fun requestScreenCapture() {
             isAllCaps = false
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.rgb(10, 76, 54))
-            setOnClickListener { action() }
+            setOnClickListener {
+                action()
+            }
         }
 
         parent.addView(button)
@@ -212,6 +272,7 @@ private fun requestScreenCapture() {
             .setTitle("Angle calculator")
             .setView(box)
             .setPositiveButton("Calculate") { _, _ ->
+
                 val x = offset.text.toString().toFloatOrNull() ?: 0f
                 val y = distance.text.toString().toFloatOrNull() ?: 0f
 
@@ -254,10 +315,15 @@ private fun requestScreenCapture() {
             .setTitle("Bank shot calculator")
             .setView(box)
             .setPositiveButton("Calculate") { _, _ ->
+
                 val w = width.text.toString().toFloatOrNull()
                 val x = target.text.toString().toFloatOrNull()
 
-                val result = if (w != null && x != null && w > 0f) {
+                val result = if (
+                    w != null &&
+                    x != null &&
+                    w > 0f
+                ) {
                     "Mirror point: ${
                         (w - x).coerceIn(0f, w).roundToInt()
                     } units"
@@ -275,6 +341,7 @@ private fun requestScreenCapture() {
     }
 
     private inner class PracticeBoard : View(this@MainActivity) {
+
         var angle = 0f
         var showGuide = true
 
@@ -300,21 +367,34 @@ private fun requestScreenCapture() {
             super.onDraw(canvas)
 
             canvas.drawRoundRect(
-                12f, 12f,
-                width - 12f, height - 12f,
-                18f, 18f, rail
+                12f,
+                12f,
+                width - 12f,
+                height - 12f,
+                18f,
+                18f,
+                rail
             )
 
             canvas.drawRoundRect(
-                26f, 26f,
-                width - 26f, height - 26f,
-                10f, 10f, felt
+                26f,
+                26f,
+                width - 26f,
+                height - 26f,
+                10f,
+                10f,
+                felt
             )
 
             val startX = width / 2f
             val startY = height * 0.72f
 
-            canvas.drawCircle(startX, startY, 9f, ball)
+            canvas.drawCircle(
+                startX,
+                startY,
+                9f,
+                ball
+            )
 
             if (showGuide) {
                 val radians = Math.toRadians(angle.toDouble())
@@ -327,7 +407,11 @@ private fun requestScreenCapture() {
                     (cos(radians) * length).toFloat()
 
                 canvas.drawLine(
-                    startX, startY, endX, endY, line
+                    startX,
+                    startY,
+                    endX,
+                    endY,
+                    line
                 )
             }
 
