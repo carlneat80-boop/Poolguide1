@@ -1,9 +1,11 @@
 
 package com.example.poolguide
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -33,6 +35,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQUEST_SCREEN_CAPTURE = 1001
+        private const val REQUEST_NOTIFICATION_PERMISSION = 1002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,7 +74,7 @@ class MainActivity : Activity() {
         }
 
         addToolButton(content, "Start screen capture test") {
-            requestScreenCapture()
+            checkNotificationPermission()
         }
 
         board = PracticeBoard()
@@ -147,6 +150,57 @@ class MainActivity : Activity() {
 
         page.addView(scroll)
         setContentView(page)
+    }
+
+    private fun checkNotificationPermission() {
+
+        if (Build.VERSION.SDK_INT >= 33) {
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    REQUEST_NOTIFICATION_PERMISSION
+                )
+                return
+            }
+        }
+
+        requestScreenCapture()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+        )
+
+        if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
+
+            if (
+                grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ) {
+                requestScreenCapture()
+            } else {
+                AlertDialog.Builder(this)
+                    .setTitle("Notification permission needed")
+                    .setMessage(
+                        "Please allow PoolGuide notifications so " +
+                        "you can see its screen capture status."
+                    )
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+        }
     }
 
     private fun requestScreenCapture() {
