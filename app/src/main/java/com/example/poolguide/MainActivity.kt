@@ -1,12 +1,13 @@
 
 package com.example.poolguide
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -26,43 +27,17 @@ import kotlin.math.cos
 class MainActivity : Activity() {
     private lateinit var board: PracticeBoard
     private lateinit var angleLabel: TextView
+    private var waitingForOverlayPermission = false
 
-    override fun onCreate() {
-    super.onCreate()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-    val channelId = "poolguide_overlay"
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20, 24, 20, 24)
+            setBackgroundColor(Color.rgb(18, 28, 25))
+        }
 
-    if (Build.VERSION.SDK_INT >= 26) {
-        val channel = NotificationChannel(
-            channelId,
-            "PoolGuide floating controls",
-            NotificationManager.IMPORTANCE_LOW
-        )
-        val manager = getSystemService(
-            NotificationManager::class.java
-        )
-        manager.createNotificationChannel(channel)
-    }
-
-    val notification = if (Build.VERSION.SDK_INT >= 26) {
-        Notification.Builder(this, channelId)
-            .setContentTitle("PoolGuide is active")
-            .setContentText("Floating practice controls are ready")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .build()
-    } else {
-        Notification.Builder(this)
-            .setContentTitle("PoolGuide is active")
-            .setContentText("Floating practice controls are ready")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .build()
-    }
-
-    startForeground(1, notification)
-
-    wm = getSystemService(WINDOW_SERVICE) as WindowManager
-    addBubble()
-}
         val scroll = ScrollView(this)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -82,6 +57,10 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
             gravity = Gravity.CENTER
         })
+
+        addToolButton(content, "Start floating PG button") {
+            startFloatingButton()
+        }
 
         board = PracticeBoard()
         content.addView(board, LinearLayout.LayoutParams(
@@ -142,6 +121,44 @@ class MainActivity : Activity() {
 
         page.addView(scroll)
         setContentView(page)
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        if (waitingForOverlayPermission &&
+            Build.VERSION.SDK_INT >= 23 &&
+            Settings.canDrawOverlays(this)
+        ) {
+            waitingForOverlayPermission = false
+            startOverlayService()
+        }
+    }
+
+    private fun startFloatingButton() {
+        if (Build.VERSION.SDK_INT >= 23 &&
+            !Settings.canDrawOverlays(this)
+        ) {
+            waitingForOverlayPermission = true
+
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        } else {
+            startOverlayService()
+        }
+    }
+
+    private fun startOverlayService() {
+        val intent = Intent(this, FloatingOverlayService::class.java)
+
+        if (Build.VERSION.SDK_INT >= 26) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
 
     private fun addToolButton(
