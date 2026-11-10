@@ -138,7 +138,16 @@ class MainActivity : Activity() {
             startOverlayService()
         }
     }
+private fun requestScreenCapture() {
+    val manager = getSystemService(
+        MEDIA_PROJECTION_SERVICE
+    ) as MediaProjectionManager
 
+    startActivityForResult(
+        manager.createScreenCaptureIntent(),
+        1001
+    )
+}
     private fun startFloatingButton() {
         if (Build.VERSION.SDK_INT >= 23 &&
             !Settings.canDrawOverlays(this)
