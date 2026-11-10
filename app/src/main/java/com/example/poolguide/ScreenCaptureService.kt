@@ -27,6 +27,8 @@ class ScreenCaptureService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
@@ -34,6 +36,8 @@ class ScreenCaptureService : Service() {
     ): Int {
 
         val resultCode = intent?.getIntExtra("result_code", 0) ?: 0
+
+        @Suppress("DEPRECATION")
         val data = intent?.getParcelableExtra<Intent>("capture_data")
 
         if (data == null) {
@@ -49,6 +53,7 @@ class ScreenCaptureService : Service() {
                 "PoolGuide screen capture",
                 NotificationManager.IMPORTANCE_LOW
             )
+
             getSystemService(NotificationManager::class.java)
                 .createNotificationChannel(channel)
         }
@@ -85,6 +90,7 @@ class ScreenCaptureService : Service() {
             projection = manager.getMediaProjection(resultCode, data)
 
             val metrics = DisplayMetrics()
+
             @Suppress("DEPRECATION")
             (getSystemService(Context.WINDOW_SERVICE) as WindowManager)
                 .defaultDisplay.getRealMetrics(metrics)
@@ -100,6 +106,15 @@ class ScreenCaptureService : Service() {
                 2
             )
 
+            // Receive captured frames and release them safely.
+            imageReader?.setOnImageAvailableListener(
+                { reader ->
+                    val image = reader.acquireLatestImage()
+                    image?.close()
+                },
+                mainHandler
+            )
+
             projection?.registerCallback(
                 object : MediaProjection.Callback() {
                     override fun onStop() {
@@ -107,7 +122,7 @@ class ScreenCaptureService : Service() {
                         stopSelf()
                     }
                 },
-                Handler(Looper.getMainLooper())
+                mainHandler
             )
 
             virtualDisplay = projection?.createVirtualDisplay(
@@ -118,7 +133,7 @@ class ScreenCaptureService : Service() {
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 imageReader?.surface,
                 null,
-                null
+                mainHandler
             )
 
         } catch (e: Exception) {
@@ -133,6 +148,7 @@ class ScreenCaptureService : Service() {
         virtualDisplay?.release()
         virtualDisplay = null
 
+        imageReader?.setOnImageAvailableListener(null, null)
         imageReader?.close()
         imageReader = null
 
@@ -145,5 +161,7 @@ class ScreenCaptureService : Service() {
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
 }
