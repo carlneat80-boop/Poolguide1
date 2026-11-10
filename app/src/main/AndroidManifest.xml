@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -8,7 +9,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:label="PoolGuide"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
@@ -42,3 +43,12 @@
     </application>
 
 </manifest>
+
+/*
+ * =========================================
+ * POOLGUIDE
+ * Created by: Carl Neat
+ * Developer: Carl Neat
+ * Copyright © 2026 Carl Neat
+ * =========================================
+ */
