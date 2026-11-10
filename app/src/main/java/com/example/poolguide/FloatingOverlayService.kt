@@ -252,3 +252,12 @@ class FloatingOverlayService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 }
+
+/*
+ * =========================================
+ * POOLGUIDE
+ * Created by: Carl Neat
+ * Developer: Carl Neat
+ * Copyright © 2026 Carl Neat
+ * =========================================
+ */
