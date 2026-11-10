@@ -1,6 +1,13 @@
 
 package com.example.poolguide
-
+/*
+ * =========================================
+ * POOLGUIDE
+ * Created by: Carl Neat
+ * Developer: Carl Neat
+ * Copyright © 2026 Carl Neat
+ * =========================================
+ */
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
@@ -478,3 +485,17 @@ class MainActivity : Activity() {
         }
     }
 }
+
+content.addView(TextView(this).apply {
+    text = "POOLGUIDE"
+    textSize = 28f
+    setTextColor(Color.rgb(0, 255, 100))
+    gravity = Gravity.CENTER
+})
+
+content.addView(TextView(this).apply {
+    text = "Created by Carl Neat\nDeveloper • Copyright © 2026 Carl Neat"
+    textSize = 13f
+    setTextColor(Color.rgb(0, 255, 100))
+    gravity = Gravity.CENTER
+})
