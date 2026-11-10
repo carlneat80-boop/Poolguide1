@@ -17,6 +17,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import android.content.pm.ServiceInfo
@@ -26,6 +27,10 @@ class ScreenCaptureService : Service() {
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
+    private var notificationManager: NotificationManager? = null
+    private var notificationBuilder: Notification.Builder? = null
+    private var frameCount = 0L
+    private var lastNotificationUpdate = 0L
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -58,19 +63,23 @@ class ScreenCaptureService : Service() {
                 .createNotificationChannel(channel)
         }
 
-        val notification = if (Build.VERSION.SDK_INT >= 26) {
+        notificationManager = getSystemService(
+            Context.NOTIFICATION_SERVICE
+        ) as NotificationManager
+
+        notificationBuilder = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, channelId)
                 .setContentTitle("PoolGuide screen capture")
-                .setContentText("Screen capture is active")
+                .setContentText("Starting screen capture...")
                 .setSmallIcon(android.R.drawable.ic_menu_view)
-                .build()
         } else {
             Notification.Builder(this)
                 .setContentTitle("PoolGuide screen capture")
-                .setContentText("Screen capture is active")
+                .setContentText("Starting screen capture...")
                 .setSmallIcon(android.R.drawable.ic_menu_view)
-                .build()
         }
+
+        val notification = notificationBuilder!!.build()
 
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(
@@ -106,11 +115,30 @@ class ScreenCaptureService : Service() {
                 2
             )
 
-            // Receive captured frames and release them safely.
+            // Count captured frames and update the notification.
             imageReader?.setOnImageAvailableListener(
                 { reader ->
                     val image = reader.acquireLatestImage()
-                    image?.close()
+
+                    if (image != null) {
+                        image.close()
+                        frameCount++
+
+                        val now = SystemClock.elapsedRealtime()
+
+                        if (now - lastNotificationUpdate >= 1000L) {
+                            lastNotificationUpdate = now
+
+                            notificationBuilder?.setContentText(
+                                "Frames received: $frameCount"
+                            )
+
+                            notificationManager?.notify(
+                                2,
+                                notificationBuilder?.build()
+                            )
+                        }
+                    }
                 },
                 mainHandler
             )
@@ -154,6 +182,8 @@ class ScreenCaptureService : Service() {
 
         projection?.stop()
         projection = null
+        notificationBuilder = null
+        notificationManager = null
     }
 
     override fun onDestroy() {
