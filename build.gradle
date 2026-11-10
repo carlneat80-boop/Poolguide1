@@ -4,4 +4,11 @@ plugins {
     id 'org.jetbrains.kotlin.android' version '2.0.21' apply false
 }
 
-    
+/*
+ * =========================================
+ * POOLGUIDE
+ * Created by: Carl Neat
+ * Developer: Carl Neat
+ * Copyright © 2026 Carl Neat
+ * =========================================
+ */
