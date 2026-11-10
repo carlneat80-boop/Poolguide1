@@ -27,15 +27,42 @@ class MainActivity : Activity() {
     private lateinit var board: PracticeBoard
     private lateinit var angleLabel: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onCreate() {
+    super.onCreate()
 
-        val page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 24, 20, 24)
-            setBackgroundColor(Color.rgb(18, 28, 25))
-        }
+    val channelId = "poolguide_overlay"
 
+    if (Build.VERSION.SDK_INT >= 26) {
+        val channel = NotificationChannel(
+            channelId,
+            "PoolGuide floating controls",
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val manager = getSystemService(
+            NotificationManager::class.java
+        )
+        manager.createNotificationChannel(channel)
+    }
+
+    val notification = if (Build.VERSION.SDK_INT >= 26) {
+        Notification.Builder(this, channelId)
+            .setContentTitle("PoolGuide is active")
+            .setContentText("Floating practice controls are ready")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .build()
+    } else {
+        Notification.Builder(this)
+            .setContentTitle("PoolGuide is active")
+            .setContentText("Floating practice controls are ready")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .build()
+    }
+
+    startForeground(1, notification)
+
+    wm = getSystemService(WINDOW_SERVICE) as WindowManager
+    addBubble()
+}
         val scroll = ScrollView(this)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
