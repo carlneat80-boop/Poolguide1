@@ -185,10 +185,11 @@ class ScreenCaptureService : Service() {
         notificationBuilder = null
         notificationManager = null
     }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
-    releaseCapture()
-    stopSelf()
-    super.onTaskRemoved(rootIntent)
+        releaseCapture()
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -200,3 +201,12 @@ class ScreenCaptureService : Service() {
         return null
     }
 }
+
+/*
+ * =========================================
+ * POOLGUIDE
+ * Created by: Carl Neat
+ * Developer: Carl Neat
+ * Copyright © 2026 Carl Neat
+ * =========================================
+ */
