@@ -36,41 +36,39 @@ class FloatingOverlayService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
 
     override fun onCreate() {
-    super.onCreate()
+        super.onCreate()
 
-    val channelId = "poolguide_overlay"
+        val channelId = "poolguide_overlay"
 
-    if (Build.VERSION.SDK_INT >= 26) {
-        val channel = NotificationChannel(
-            channelId,
-            "PoolGuide floating controls",
-            NotificationManager.IMPORTANCE_LOW
-        )
-        val manager = getSystemService(
-            NotificationManager::class.java
-        )
-        manager.createNotificationChannel(channel)
+        if (Build.VERSION.SDK_INT >= 26) {
+            val channel = NotificationChannel(
+                channelId,
+                "PoolGuide floating controls",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
+        }
+
+        val notification = if (Build.VERSION.SDK_INT >= 26) {
+            Notification.Builder(this, channelId)
+                .setContentTitle("PoolGuide is active")
+                .setContentText("Floating practice controls are ready")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build()
+        } else {
+            Notification.Builder(this)
+                .setContentTitle("PoolGuide is active")
+                .setContentText("Floating practice controls are ready")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build()
+        }
+
+        startForeground(1, notification)
+
+        wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        addBubble()
     }
-
-    val notification = if (Build.VERSION.SDK_INT >= 26) {
-        Notification.Builder(this, channelId)
-            .setContentTitle("PoolGuide is active")
-            .setContentText("Floating practice controls are ready")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .build()
-    } else {
-        Notification.Builder(this)
-            .setContentTitle("PoolGuide is active")
-            .setContentText("Floating practice controls are ready")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .build()
-    }
-
-    startForeground(1, notification)
-
-    wm = getSystemService(WINDOW_SERVICE) as WindowManager
-    addBubble()
-}
 
     private fun addBubble() {
         val v = TextView(this).apply {
@@ -191,8 +189,10 @@ class FloatingOverlayService : Service() {
         })
 
         box.addView(Button(this).apply {
-            text = "Turn off PG"
-            setOnClickListener { stopSelf() }
+            text = "Stop screen capture"
+            setOnClickListener {
+                stopService(Intent(this@FloatingOverlayService, ScreenCaptureService::class.java))
+            }
         })
 
         val p = WindowManager.LayoutParams(
@@ -209,6 +209,13 @@ class FloatingOverlayService : Service() {
 
         panel = box
         wm.addView(box, p)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Swiping PoolGuide away from Recents stops screen capture too.
+        stopService(Intent(this, ScreenCaptureService::class.java))
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
