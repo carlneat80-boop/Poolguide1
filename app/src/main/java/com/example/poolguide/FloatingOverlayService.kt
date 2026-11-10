@@ -21,15 +21,16 @@ import android.widget.TextView
 import kotlin.math.abs
 
 class FloatingOverlayService : Service() {
+
     private lateinit var wm: WindowManager
     private var bubble: TextView? = null
     private var panel: LinearLayout? = null
     private var angle = 0
 
-    private fun dp(n: Int) =
-        (n * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
-    private fun windowType() =
+    private fun windowType(): Int =
         if (Build.VERSION.SDK_INT >= 26)
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         else
@@ -71,7 +72,7 @@ class FloatingOverlayService : Service() {
     }
 
     private fun addBubble() {
-        val v = TextView(this).apply {
+        val view = TextView(this).apply {
             text = "PG"
             textSize = 17f
             setTextColor(Color.WHITE)
@@ -83,8 +84,10 @@ class FloatingOverlayService : Service() {
             }
         }
 
-        val p = WindowManager.LayoutParams(
-            dp(58), dp(58), windowType(),
+        val params = WindowManager.LayoutParams(
+            dp(58),
+            dp(58),
+            windowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
@@ -99,36 +102,42 @@ class FloatingOverlayService : Service() {
         var downY = 0f
         var dragged = false
 
-        v.setOnTouchListener { _, e ->
-            when (e.action) {
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    downX = e.rawX
-                    downY = e.rawY
-                    startX = p.x
-                    startY = p.y
+                    downX = event.rawX
+                    downY = event.rawY
+                    startX = params.x
+                    startY = params.y
                     dragged = false
                     true
                 }
+
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = (e.rawX - downX).toInt()
-                    val dy = (e.rawY - downY).toInt()
-                    if (abs(dx) > dp(5) || abs(dy) > dp(5))
+                    val dx = (event.rawX - downX).toInt()
+                    val dy = (event.rawY - downY).toInt()
+
+                    if (abs(dx) > dp(5) || abs(dy) > dp(5)) {
                         dragged = true
-                    p.x = startX + dx
-                    p.y = startY + dy
-                    wm.updateViewLayout(v, p)
+                    }
+
+                    params.x = startX + dx
+                    params.y = startY + dy
+                    wm.updateViewLayout(view, params)
                     true
                 }
+
                 MotionEvent.ACTION_UP -> {
                     if (!dragged) togglePanel()
                     true
                 }
+
                 else -> true
             }
         }
 
-        bubble = v
-        wm.addView(v, p)
+        bubble = view
+        wm.addView(view, params)
     }
 
     private fun togglePanel() {
@@ -158,27 +167,33 @@ class FloatingOverlayService : Service() {
             text = "Practice angle: $angle°"
             setTextColor(Color.WHITE)
         }
+
         box.addView(label)
 
         box.addView(SeekBar(this).apply {
             max = 360
             progress = angle
+
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(
-                        s: SeekBar?, value: Int, user: Boolean
+                        seekBar: SeekBar?,
+                        value: Int,
+                        fromUser: Boolean
                     ) {
                         angle = value
                         label.text = "Practice angle: $angle°"
                     }
-                    override fun onStartTrackingTouch(s: SeekBar?) {}
-                    override fun onStopTrackingTouch(s: SeekBar?) {}
+
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
                 }
             )
         })
 
         box.addView(TextView(this).apply {
-            text = "Use this as a manual practice reference. It does not read the game table."
+            text = "Manual practice reference. This does not read the game table."
             setTextColor(Color.LTGRAY)
             textSize = 12f
         })
@@ -191,12 +206,18 @@ class FloatingOverlayService : Service() {
         box.addView(Button(this).apply {
             text = "Stop screen capture"
             setOnClickListener {
-                stopService(Intent(this@FloatingOverlayService, ScreenCaptureService::class.java))
+                stopService(
+                    Intent(
+                        this@FloatingOverlayService,
+                        ScreenCaptureService::class.java
+                    )
+                )
             }
         })
 
-        val p = WindowManager.LayoutParams(
-            dp(260), WindowManager.LayoutParams.WRAP_CONTENT,
+        val params = WindowManager.LayoutParams(
+            dp(260),
+            WindowManager.LayoutParams.WRAP_CONTENT,
             windowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -208,12 +229,13 @@ class FloatingOverlayService : Service() {
         }
 
         panel = box
-        wm.addView(box, p)
+        wm.addView(box, params)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Swiping PoolGuide away from Recents stops screen capture too.
-        stopService(Intent(this, ScreenCaptureService::class.java))
+        stopService(
+            Intent(this, ScreenCaptureService::class.java)
+        )
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
@@ -221,8 +243,10 @@ class FloatingOverlayService : Service() {
     override fun onDestroy() {
         panel?.let { wm.removeView(it) }
         bubble?.let { wm.removeView(it) }
+
         panel = null
         bubble = null
+
         super.onDestroy()
     }
 
