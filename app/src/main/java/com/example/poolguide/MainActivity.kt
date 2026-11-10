@@ -1,4 +1,4 @@
-
+no
 package com.example.poolguide
 /*
  * =========================================
@@ -62,12 +62,20 @@ class MainActivity : Activity() {
 
         scroll.addView(content)
 
-        content.addView(TextView(this).apply {
-            text = "POOL GUIDE"
-            textSize = 28f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-        })
+        
+content.addView(TextView(this).apply {
+    text = "POOLGUIDE"
+    textSize = 28f
+    setTextColor(Color.rgb(0, 255, 100))
+    gravity = Gravity.CENTER
+})
+
+content.addView(TextView(this).apply {
+    text = "Created by Carl Neat\nDeveloper • Copyright © 2026 Carl Neat"
+    textSize = 13f
+    setTextColor(Color.rgb(0, 255, 100))
+    gravity = Gravity.CENTER
+})
 
         content.addView(TextView(this).apply {
             text = "Practice tools"
@@ -486,16 +494,3 @@ class MainActivity : Activity() {
     }
 }
 
-content.addView(TextView(this).apply {
-    text = "POOLGUIDE"
-    textSize = 28f
-    setTextColor(Color.rgb(0, 255, 100))
-    gravity = Gravity.CENTER
-})
-
-content.addView(TextView(this).apply {
-    text = "Created by Carl Neat\nDeveloper • Copyright © 2026 Carl Neat"
-    textSize = 13f
-    setTextColor(Color.rgb(0, 255, 100))
-    gravity = Gravity.CENTER
-})
