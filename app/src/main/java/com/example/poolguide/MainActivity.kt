@@ -1,6 +1,7 @@
 
 package com.example.poolguide
 
+import android.media.projection.MediaProjectionManager
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -60,6 +61,9 @@ class MainActivity : Activity() {
 
         addToolButton(content, "Start floating PG button") {
             startFloatingButton()
+        }
+        addToolButton(content, "Start screen capture test") {
+    requestScreenCapture()
         }
 
         board = PracticeBoard()
