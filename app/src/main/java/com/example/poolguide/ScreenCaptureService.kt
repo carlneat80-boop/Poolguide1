@@ -185,6 +185,11 @@ class ScreenCaptureService : Service() {
         notificationBuilder = null
         notificationManager = null
     }
+    override fun onTaskRemoved(rootIntent: Intent?) {
+    releaseCapture()
+    stopSelf()
+    super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         releaseCapture()
