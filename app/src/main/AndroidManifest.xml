@@ -42,13 +42,13 @@
 
     </application>
 
-</manifest>
+    <!--
+    =========================================
+    POOLGUIDE
+    Created by: Carl Neat
+    Developer: Carl Neat
+    Copyright © 2026 Carl Neat
+    =========================================
+    -->
 
-/*
- * =========================================
- * POOLGUIDE
- * Created by: Carl Neat
- * Developer: Carl Neat
- * Copyright © 2026 Carl Neat
- * =========================================
- */
+</manifest>
