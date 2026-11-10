@@ -1,6 +1,9 @@
 
 package com.example.poolguide
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.graphics.Color
@@ -33,10 +36,41 @@ class FloatingOverlayService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
 
     override fun onCreate() {
-        super.onCreate()
-        wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        addBubble()
+    super.onCreate()
+
+    val channelId = "poolguide_overlay"
+
+    if (Build.VERSION.SDK_INT >= 26) {
+        val channel = NotificationChannel(
+            channelId,
+            "PoolGuide floating controls",
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val manager = getSystemService(
+            NotificationManager::class.java
+        )
+        manager.createNotificationChannel(channel)
     }
+
+    val notification = if (Build.VERSION.SDK_INT >= 26) {
+        Notification.Builder(this, channelId)
+            .setContentTitle("PoolGuide is active")
+            .setContentText("Floating practice controls are ready")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .build()
+    } else {
+        Notification.Builder(this)
+            .setContentTitle("PoolGuide is active")
+            .setContentText("Floating practice controls are ready")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .build()
+    }
+
+    startForeground(1, notification)
+
+    wm = getSystemService(WINDOW_SERVICE) as WindowManager
+    addBubble()
+}
 
     private fun addBubble() {
         val v = TextView(this).apply {
