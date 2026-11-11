@@ -108,6 +108,9 @@ class FloatingOverlayService : Service() {
             gravity = Gravity.TOP or Gravity.START
             x = 0
             y = 0
+            // Android 12+ limits touches passing through translucent app overlays.
+            // Both full-screen guide layers overlap, so keep each at 0.5 alpha.
+            alpha = 0.5f
         }
 
         wm.addView(guideView, guideParams)
@@ -143,6 +146,8 @@ class FloatingOverlayService : Service() {
             gravity = Gravity.TOP or Gravity.START
             x = 0
             y = 0
+            // Combined with the guide window, the overlapping opacity stays below 0.8.
+            alpha = 0.5f
         }
         wm.addView(detectionView, detectionParams)
     }
