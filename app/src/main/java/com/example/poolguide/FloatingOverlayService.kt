@@ -25,12 +25,23 @@ class FloatingOverlayService : Service() {
 
     private lateinit var wm: WindowManager
     private lateinit var guideView: GuideOverlayView
+    private lateinit var detectionView: PoolDetectionOverlayView
     private lateinit var guideParams: WindowManager.LayoutParams
+    private lateinit var detectionParams: WindowManager.LayoutParams
 
     private var bubble: TextView? = null
     private var panel: LinearLayout? = null
     private var angleAdjustment = 0
     private var guideVisible = true
+    private var detectionVisible = true
+
+    private val detectionListener: (PoolDetection?) -> Unit = { detection ->
+        if (::detectionView.isInitialized) {
+            detectionView.post {
+                if (::detectionView.isInitialized) detectionView.setDetection(detection)
+            }
+        }
+    }
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
@@ -47,7 +58,9 @@ class FloatingOverlayService : Service() {
 
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         addGuideLayer()
+        addDetectionLayer()
         addBubble()
+        PoolGuideDetectionBus.addListener(detectionListener)
     }
 
     private fun startOverlayForeground() {
@@ -113,6 +126,25 @@ class FloatingOverlayService : Service() {
         } catch (_: IllegalArgumentException) {
             // The service may be closing while a placement callback arrives.
         }
+    }
+
+    private fun addDetectionLayer() {
+        detectionView = PoolDetectionOverlayView(this)
+        detectionParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            windowType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 0
+        }
+        wm.addView(detectionView, detectionParams)
     }
 
     private fun addBubble() {
@@ -242,6 +274,12 @@ class FloatingOverlayService : Service() {
             closePanel()
         }
 
+        addPanelButton(box, if (detectionVisible) "Hide detected table" else "Show detected table") {
+            detectionVisible = !detectionVisible
+            detectionView.visibility = if (detectionVisible) View.VISIBLE else View.GONE
+            closePanel()
+        }
+
         addPanelButton(box, "Place table, balls and pocket") {
             beginPlacement()
         }
@@ -254,7 +292,7 @@ class FloatingOverlayService : Service() {
         }
 
         addPanelButton(box, "Clear guide") {
-           guideView.clearGuide()
+            guideView.clearGuide()
             setGuidePlacementTouch(false)
             closePanel()
         }
@@ -262,6 +300,7 @@ class FloatingOverlayService : Service() {
         addPanelButton(box, "Stop screen capture") {
             if (guideView.isPlacing) cancelPlacement()
             stopService(Intent(this, ScreenCaptureService::class.java))
+            closePanel()
         }
 
         addPanelButton(box, "Close panel") { closePanel() }
@@ -338,6 +377,14 @@ class FloatingOverlayService : Service() {
                 wm.removeView(guideView)
             } catch (_: IllegalArgumentException) {
                 // The guide window is already detached.
+            }
+        }
+        PoolGuideDetectionBus.removeListener(detectionListener)
+        if (::detectionView.isInitialized) {
+            try {
+                wm.removeView(detectionView)
+            } catch (_: IllegalArgumentException) {
+                // The detection window is already detached.
             }
         }
         bubble?.let {
