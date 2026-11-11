@@ -254,13 +254,14 @@ class FloatingOverlayService : Service() {
         }
 
         addPanelButton(box, "Clear guide") {
-            guideView.clearGuide()
+           guideView.clearGuide()
+            setGuidePlacementTouch(false)
             closePanel()
         }
 
         addPanelButton(box, "Stop screen capture") {
+            if (guideView.isPlacing) cancelPlacement()
             stopService(Intent(this, ScreenCaptureService::class.java))
-            closePanel()
         }
 
         addPanelButton(box, "Close panel") { closePanel() }
