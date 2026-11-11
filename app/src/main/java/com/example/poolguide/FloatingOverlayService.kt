@@ -1,4 +1,3 @@
-
 package com.example.poolguide
 
 import android.app.Notification
@@ -13,19 +12,25 @@ import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import kotlin.math.abs
 
 class FloatingOverlayService : Service() {
 
     private lateinit var wm: WindowManager
+    private lateinit var guideView: GuideOverlayView
+    private lateinit var guideParams: WindowManager.LayoutParams
+
     private var bubble: TextView? = null
     private var panel: LinearLayout? = null
-    private var angle = 0
+    private var angleAdjustment = 0
+    private var guideVisible = true
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
@@ -38,7 +43,14 @@ class FloatingOverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        startOverlayForeground()
 
+        wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        addGuideLayer()
+        addBubble()
+    }
+
+    private fun startOverlayForeground() {
         val channelId = "poolguide_overlay"
 
         if (Build.VERSION.SDK_INT >= 26) {
@@ -54,21 +66,53 @@ class FloatingOverlayService : Service() {
         val notification = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, channelId)
                 .setContentTitle("PoolGuide is active")
-                .setContentText("Floating practice controls are ready")
+                .setContentText("Floating practice guide is ready")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .build()
         } else {
             Notification.Builder(this)
                 .setContentTitle("PoolGuide is active")
-                .setContentText("Floating practice controls are ready")
+                .setContentText("Floating practice guide is ready")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .build()
         }
 
         startForeground(1, notification)
+    }
 
-        wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        addBubble()
+    private fun addGuideLayer() {
+        guideView = GuideOverlayView(this)
+        guideParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            windowType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 0
+        }
+
+        wm.addView(guideView, guideParams)
+    }
+
+    private fun setGuidePlacementTouch(enabled: Boolean) {
+        if (!::guideParams.isInitialized) return
+
+        guideParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            (if (!enabled) WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else 0)
+
+        try {
+            wm.updateViewLayout(guideView, guideParams)
+        } catch (_: IllegalArgumentException) {
+            // The service may be closing while a placement callback arrives.
+        }
     }
 
     private fun addBubble() {
@@ -103,7 +147,7 @@ class FloatingOverlayService : Service() {
         var dragged = false
 
         view.setOnTouchListener { _, event ->
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = event.rawX
                     downY = event.rawY
@@ -117,9 +161,7 @@ class FloatingOverlayService : Service() {
                     val dx = (event.rawX - downX).toInt()
                     val dy = (event.rawY - downY).toInt()
 
-                    if (abs(dx) > dp(5) || abs(dy) > dp(5)) {
-                        dragged = true
-                    }
+                    if (abs(dx) > dp(5) || abs(dy) > dp(5)) dragged = true
 
                     params.x = startX + dx
                     params.y = startY + dy
@@ -142,8 +184,7 @@ class FloatingOverlayService : Service() {
 
     private fun togglePanel() {
         if (panel != null) {
-            panel?.let { wm.removeView(it) }
-            panel = null
+            closePanel()
             return
         }
 
@@ -164,59 +205,68 @@ class FloatingOverlayService : Service() {
         })
 
         val label = TextView(this).apply {
-            text = "Practice angle: $angle°"
+            text = "Aim adjustment: ${angleAdjustment}°"
             setTextColor(Color.WHITE)
         }
-
         box.addView(label)
 
         box.addView(SeekBar(this).apply {
-            max = 360
-            progress = angle
-
-            setOnSeekBarChangeListener(
-                object : SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(
-                        seekBar: SeekBar?,
-                        value: Int,
-                        fromUser: Boolean
-                    ) {
-                        angle = value
-                        label.text = "Practice angle: $angle°"
-                    }
-
-                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            max = 90
+            progress = angleAdjustment + 45
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    value: Int,
+                    fromUser: Boolean
+                ) {
+                    angleAdjustment = value - 45
+                    guideView.setAngleAdjustment(angleAdjustment.toFloat())
+                    label.text = "Aim adjustment: ${angleAdjustment}°"
                 }
-            )
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
         })
 
         box.addView(TextView(this).apply {
-            text = "Manual practice reference. This does not read the game table."
+            text = "Manual guide only. Place the table and balls yourself."
             setTextColor(Color.LTGRAY)
             textSize = 12f
         })
 
-        box.addView(Button(this).apply {
-            text = "Close"
-            setOnClickListener { togglePanel() }
-        })
+        addPanelButton(box, if (guideVisible) "Hide shot guide" else "Show shot guide") {
+            guideVisible = !guideVisible
+            guideView.visibility = if (guideVisible) View.VISIBLE else View.GONE
+            if (!guideVisible && guideView.isPlacing) cancelPlacement()
+            closePanel()
+        }
 
-        box.addView(Button(this).apply {
-            text = "Stop screen capture"
-            setOnClickListener {
-                stopService(
-                    Intent(
-                        this@FloatingOverlayService,
-                        ScreenCaptureService::class.java
-                    )
-                )
+        addPanelButton(box, "Place table, balls and pocket") {
+            beginPlacement()
+        }
+
+        if (guideView.isPlacing) {
+            addPanelButton(box, "Cancel placement") {
+                cancelPlacement()
+                closePanel()
             }
-        })
+        }
+
+        addPanelButton(box, "Clear guide") {
+            guideView.clearGuide()
+            closePanel()
+        }
+
+        addPanelButton(box, "Stop screen capture") {
+            stopService(Intent(this, ScreenCaptureService::class.java))
+            closePanel()
+        }
+
+        addPanelButton(box, "Close panel") { closePanel() }
 
         val params = WindowManager.LayoutParams(
-            dp(260),
+            dp(280),
             WindowManager.LayoutParams.WRAP_CONTENT,
             windowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -232,21 +282,71 @@ class FloatingOverlayService : Service() {
         wm.addView(box, params)
     }
 
+    private fun addPanelButton(
+        parent: LinearLayout,
+        title: String,
+        action: () -> Unit
+    ) {
+        parent.addView(Button(this).apply {
+            text = title
+            isAllCaps = false
+            setOnClickListener { action() }
+        })
+    }
+
+    private fun beginPlacement() {
+        guideVisible = true
+        guideView.visibility = View.VISIBLE
+        guideView.beginPlacement {
+            setGuidePlacementTouch(false)
+            Toast.makeText(
+                this,
+                "Guide placed. Game touches pass through again.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+        setGuidePlacementTouch(true)
+        closePanel()
+    }
+
+    private fun cancelPlacement() {
+        guideView.cancelPlacement()
+        setGuidePlacementTouch(false)
+    }
+
+    private fun closePanel() {
+        val currentPanel = panel ?: return
+        try {
+            wm.removeView(currentPanel)
+        } catch (_: IllegalArgumentException) {
+            // The panel was already removed during service shutdown.
+        }
+        panel = null
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
-        stopService(
-            Intent(this, ScreenCaptureService::class.java)
-        )
+        stopService(Intent(this, ScreenCaptureService::class.java))
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
-        panel?.let { wm.removeView(it) }
-        bubble?.let { wm.removeView(it) }
-
-        panel = null
+        closePanel()
+        if (::guideView.isInitialized) {
+            try {
+                wm.removeView(guideView)
+            } catch (_: IllegalArgumentException) {
+                // The guide window is already detached.
+            }
+        }
+        bubble?.let {
+            try {
+                wm.removeView(it)
+            } catch (_: IllegalArgumentException) {
+                // The bubble is already detached.
+            }
+        }
         bubble = null
-
         super.onDestroy()
     }
 
